@@ -30,6 +30,7 @@ void init_led(){
 
 void blink_led(uint8_t num){
   for(uint8_t i=0;i<LED_NUM;i++){
+    delay(10);
     if(i<num) digitalWrite(LED[i], HIGH);
     else digitalWrite(LED[i], LOW);
   }
@@ -63,6 +64,6 @@ void loop()
 
     }
   } 
-  else
-    blink_led(0); 
+  //else
+  //  blink_led(0); 
 }

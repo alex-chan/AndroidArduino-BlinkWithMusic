@@ -12,6 +12,7 @@ import com.android.future.usb.UsbManager;
 
 
 import android.media.AudioManager;
+import android.media.audiofx.Visualizer;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.app.Activity;
@@ -50,6 +51,7 @@ public class MainActivity extends Activity implements Runnable{
 	
     
     AudioManager mAdManager ;
+    Visualizer mVisualizer;
     
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +60,13 @@ public class MainActivity extends Activity implements Runnable{
         
         Log.d(TAG,"onCreate");
         
-        listenToLedSwitch();
+        mVisualizer = new Visualizer(0);
+        
+        listenToSwitcher();
+        
+        
+            
+        
         
 //        mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         mUsbManager = UsbManager.getInstance(this);
@@ -84,7 +92,8 @@ public class MainActivity extends Activity implements Runnable{
 		
 		mAdManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		
-       
+		Thread thread = new Thread(null, this, "BlinkWithMusic");
+        thread.start();    
         
         
     }
@@ -148,10 +157,11 @@ public class MainActivity extends Activity implements Runnable{
 	}	
 
 
-    private void listenToLedSwitch() {
+    private void listenToSwitcher() {
 		
-    	mTbSwitcher = (ToggleButton)findViewById(R.id.toggleButtonBlink);    	
-    	
+    	mTbSwitcher = (ToggleButton)findViewById(R.id.toggleButtonBlink);   
+    	mTbSwitcher.setChecked(true);
+    		
     	mTbSwitcher.setOnCheckedChangeListener( new CompoundButton.OnCheckedChangeListener() {
 			
 			@Override
@@ -159,16 +169,17 @@ public class MainActivity extends Activity implements Runnable{
 			
 				if( isChecked){					
 			
-					mTbSwitcher.setTextOff("Off");
-					sendTurnOnLedCommand();
+					//mTbSwitcher.setTextOff("Off");
+					//sendTurnOnLedCommand();
 				}else{
-					mTbSwitcher.setTextOn("On");					
-					sendTurnOffLedCommand();
+					//mTbSwitcher.setTextOn("On");					
+					//sendTurnOffLedCommand();
 				}
 			}
 
 
 		});
+		
 		
 	}
 
@@ -239,8 +250,7 @@ public class MainActivity extends Activity implements Runnable{
             FileDescriptor fd = mFileDescriptor.getFileDescriptor();
             mInputStream = new FileInputStream(fd);
             mOutputStream = new FileOutputStream(fd);
-            Thread thread = new Thread(null, this, "BlinkWithMusic");
-            thread.start();
+
             Log.d(TAG, "accessory opened");
 
             enableControls(true);
@@ -314,25 +324,55 @@ public class MainActivity extends Activity implements Runnable{
 	@Override
 	public void run() {
 		//
-		int maxVol = mAdManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		Log.d(TAG,"run in thread");
+		int iCaptureLen = 8;
+		
+		mVisualizer.setEnabled(false);
+		mVisualizer.setCaptureSize(iCaptureLen);
+		mVisualizer.setEnabled(true);
+		
+		
+		//int maxVol = mAdManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 		
 		while(true){
 			
 		
 			byte normal = 0;
-			if(mTbSwitcher.isChecked()){
+			if(mTbSwitcher.isChecked() && mInputStream!=null && mOutputStream!=null){
 				
-				int volume = mAdManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+				byte wave[] = new byte[iCaptureLen];
+				int total = 0;
+				int average = 0;
+				if( mVisualizer.getWaveForm(wave) == Visualizer.SUCCESS){
+					for(int i=0;i<iCaptureLen;i++){
+						total += wave[i];						
+					}
+					
+					average =  (total / iCaptureLen) + 128;
+					Log.d(TAG, "Total :" +  total );
+					Log.d(TAG, "Average:" +  average );
+					Log.d(TAG, "Before: " + (int)(average/256.0 * 6) );
+					normal = (byte)( int  ) ( average / 256.0 * 6);
+					Log.d(TAG, "After :" + normal);
+				}
 				
-				normal =  (byte)(int) ( volume / (float)maxVol * 5); // 5 LED
+				
+				
+				
+				
+				
+				//int volume = mAdManager.getStreamVolume(AudioManager.STREAM_MUSIC);				
+				//normal =  (byte)(int) ( volume / (float)maxVol * 5); // 5 LED
 				
 			}
+			
+			//Log.d(TAG, "checked" + mTbSwitcher.isChecked() );
 			
 			sendCommand(normal);
 			
 			
 			try {
-				Thread.sleep(200);
+				Thread.sleep(50);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
