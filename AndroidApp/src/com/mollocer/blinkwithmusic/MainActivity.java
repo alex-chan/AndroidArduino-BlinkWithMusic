@@ -29,7 +29,7 @@ import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
-public class MainActivity extends Activity implements Runnable{
+public class MainActivity extends Activity  {
 	
 	
     private final String TAG = "BlinkWithMusicMainActivity";
@@ -40,7 +40,7 @@ public class MainActivity extends Activity implements Runnable{
 
 	private ToggleButton mTbSwitcher;
 
-	
+	/*
 	private UsbManager mUsbManager;
 	private PendingIntent mPermissionIntent;
 	
@@ -52,6 +52,9 @@ public class MainActivity extends Activity implements Runnable{
     
     AudioManager mAdManager ;
     Visualizer mVisualizer;
+    */
+	
+	Intent intent;
     
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,45 +63,19 @@ public class MainActivity extends Activity implements Runnable{
         
         Log.d(TAG,"onCreate");
         
-        mVisualizer = new Visualizer(0);
+//        mVisualizer = new Visualizer(0);
         
         listenToSwitcher();
-        
-        
-            
-        
-        
-//        mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        mUsbManager = UsbManager.getInstance(this);
-        
-		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
-				ACTION_USB_PERMISSION), 0);
-		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED);
-		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-		registerReceiver(mUsbReceiver, filter);
-		
 
-		
-		Log.d(TAG, "mUsbReceiver Registered");
-		
-		if (getLastNonConfigurationInstance() != null) {
-			mAccessory = (UsbAccessory) getLastNonConfigurationInstance();
-			openAccessory(mAccessory);
-			Log.d(TAG, "getLastNonConfigurationInstance mAccessory opened");
-		}
         
 		Log.d(TAG, "listenToLedSwitch");
 		
-		mAdManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		
-		Thread thread = new Thread(null, this, "BlinkWithMusic");
-        thread.start();    
-        
-        
+		intent = new Intent(this, BlinkService.class);
+
     }
 	
-
+	/*
 	@Override
 	public Object onRetainNonConfigurationInstance() {
 		if (mAccessory != null) {
@@ -106,13 +83,13 @@ public class MainActivity extends Activity implements Runnable{
 		} else {
 			return super.onRetainNonConfigurationInstance();
 		}
-	}
+	}*/
 
 	@Override
 	public void onResume() {
 		super.onResume();
 		Log.d(TAG,"onResume");
-		
+		/*
 		Intent intent = getIntent();
 		Log.d(TAG,"get intent");
 		if (mInputStream != null && mOutputStream != null) {
@@ -142,17 +119,18 @@ public class MainActivity extends Activity implements Runnable{
 		} else {
 			Log.d(TAG, "mAccessory is null");
 		}
+		*/
 	}
 
 	@Override
 	public void onPause() {
 		super.onPause();
-		closeAccessory();
+//		closeAccessory();
 	}
 
 	@Override
 	public void onDestroy() {
-		unregisterReceiver(mUsbReceiver);
+//		unregisterReceiver(mUsbReceiver);
 		super.onDestroy();
 	}	
 
@@ -168,10 +146,12 @@ public class MainActivity extends Activity implements Runnable{
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 			
 				if( isChecked){					
-			
+					
+					startService(intent);
 					//mTbSwitcher.setTextOff("Off");
 					//sendTurnOnLedCommand();
 				}else{
+					stopService(intent);
 					//mTbSwitcher.setTextOn("On");					
 					//sendTurnOffLedCommand();
 				}
@@ -198,187 +178,11 @@ public class MainActivity extends Activity implements Runnable{
 	
 
 	
-	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-        	
-
-        	Log.d(TAG, "Received action");
-            String action = intent.getAction();
-            Log.d(TAG, "onReceived action:"+action);
-            
-            
-            
-
-            
-            if(ACTION_USB_PERMISSION.equals(action)){
-
-
-                synchronized (this){
-                	
-//                	UsbAccessory accessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
-                	UsbAccessory accessory = UsbManager.getAccessory(intent);	
-            		
-                    if( intent.getBooleanExtra(
-                            UsbManager.EXTRA_PERMISSION_GRANTED,false)){
-                        //openAccessory(accessory);
-                    }else{
-                        Log.d(TAG, "permission denied for accessory"
-                                + accessory);
-                    }
-                    mPermissionRequestPending = false;
-                }
-
-            }else if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
-                
-//                UsbAccessory accessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
-                UsbAccessory accessory = UsbManager.getAccessory(intent);
-                if (accessory != null && accessory.equals(mAccessory)) {
-                    closeAccessory();
-                }
-            }
-
-        }
-    };
-    
-
-
-    private void openAccessory(UsbAccessory accessory) {
-        mFileDescriptor = mUsbManager.openAccessory(accessory);
-        if (mFileDescriptor != null) {
-            mAccessory = accessory;
-            FileDescriptor fd = mFileDescriptor.getFileDescriptor();
-            mInputStream = new FileInputStream(fd);
-            mOutputStream = new FileOutputStream(fd);
-
-            Log.d(TAG, "accessory opened");
-
-            enableControls(true);
-        } else {
-            Log.d(TAG, "accessory open fail");
-
-        }
-    }
-
-    private void closeAccessory() {
-        enableControls(false);
-
-        try {
-            if (mFileDescriptor != null) {
-                mFileDescriptor.close();
-            }
-        } catch (IOException e) {
-        } finally {
-            mFileDescriptor = null;
-            mAccessory = null;
-        }
-    }
-
-    protected void enableControls(boolean enable) {
-    }
 	
 
-	protected void sendTurnOffLedCommand() {
-		
-		byte command = 0x00;		
-		sendCommand(command);
-	}
 
 
-	protected void sendTurnOnLedCommand() {
-		byte command = 0x01;		
-		sendCommand(command);
-	}
-    
-	public void sendCommand(byte command){
-		byte[] buffer = new byte[1];
-		buffer[0] = command;
-		if (mOutputStream != null && buffer[0] != -1) {
-			try {
-				mOutputStream.write(buffer);
-			} catch (IOException e) {
-				Log.e(TAG, "write failed", e);
-			
-			}
-		}		
-	}
-    
-	public void sendCommand2(byte command, byte target, int value) {
-		byte[] buffer = new byte[3];
-		if (value > 255)
-			value = 255;
-
-		buffer[0] = command;
-		buffer[1] = target;
-		buffer[2] = (byte) value;
-		if (mOutputStream != null && buffer[1] != -1) {
-			try {
-				mOutputStream.write(buffer);
-			} catch (IOException e) {
-				Log.e(TAG, "write failed", e);
-			}
-		}
-	}
 
 
-	@Override
-	public void run() {
-		//
-		Log.d(TAG,"run in thread");
-		int iCaptureLen = 8;
-		
-		mVisualizer.setEnabled(false);
-		mVisualizer.setCaptureSize(iCaptureLen);
-		mVisualizer.setEnabled(true);
-		
-		
-		//int maxVol = mAdManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-		
-		while(true){
-			
-		
-			byte normal = 0;
-			if(mTbSwitcher.isChecked() && mInputStream!=null && mOutputStream!=null){
-				
-				byte wave[] = new byte[iCaptureLen];
-				int total = 0;
-				int average = 0;
-				if( mVisualizer.getWaveForm(wave) == Visualizer.SUCCESS){
-					for(int i=0;i<iCaptureLen;i++){
-						total += wave[i];						
-					}
-					
-					average =  (total / iCaptureLen) + 128;
-					Log.d(TAG, "Total :" +  total );
-					Log.d(TAG, "Average:" +  average );
-					Log.d(TAG, "Before: " + (int)(average/256.0 * 6) );
-					normal = (byte)( int  ) ( average / 256.0 * 6);
-					Log.d(TAG, "After :" + normal);
-				}
-				
-				
-				
-				
-				
-				
-				//int volume = mAdManager.getStreamVolume(AudioManager.STREAM_MUSIC);				
-				//normal =  (byte)(int) ( volume / (float)maxVol * 5); // 5 LED
-				
-			}
-			
-			//Log.d(TAG, "checked" + mTbSwitcher.isChecked() );
-			
-			sendCommand(normal);
-			
-			
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		
-		}
-	}    
     
 }

@@ -14,10 +14,10 @@ ADK adk(&Usb,"mollocer.com", // Manufacturer Name
 
 
 
-#define LED_NUM 5
+#define LED_NUM 4
 
-uint8_t LED[] = {3,5,7,9,11};
-uint8_t GND[] = {2,4,6,8,10};
+uint8_t LED[] = {1,3,5,7};
+uint8_t GND[] = {2,4,6,8};//Note:Pin0 should be disconnected when uploading stretch.
 
 void init_led(){
    for(uint8_t i=0;i<LED_NUM;i++){
