@@ -6,5 +6,7 @@
     <string name="hello_world">Hello world!</string>
     <string name="blink">Blink With Music</string>
     <string name="not_blink">Not Blink With Music</string>
+    <string name="blink_on_off">TurnOn/Off Blinking</string>
+    <string name="service_on_off">Servcie On/Off</string>
 
 </resources>

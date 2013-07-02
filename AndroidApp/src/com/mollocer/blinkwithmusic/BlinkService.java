@@ -17,21 +17,22 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.audiofx.Visualizer;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.widget.Toast;
 
-public class BlinkService extends IntentService  {
+public class BlinkService extends Service implements Runnable {
 
 	
 	private static final String TAG = "BlinkService";
 	private static final String ACTION_USB_PERMISSION = "com.mollocer.turnonoffled.action.USB_PERMISSION";
 	   
-	private boolean bShouldStopBlink = false;
-	private boolean bShouldStopService = false;
+	private boolean bBlinking = false;
+
 	
-	 private boolean mPermissionRequestPending;
+	private boolean mPermissionRequestPending;
 	
 	private UsbManager mUsbManager;
 	private PendingIntent mPermissionIntent;
@@ -43,18 +44,27 @@ public class BlinkService extends IntentService  {
 	
     
     AudioManager mAdManager ;
-    Visualizer mVisualizer;	
+    Visualizer mVisualizer = new Visualizer(0);	
 	
     Thread thread = null;
     
+    private  Binder mBlinkBinder = new BlinkBinder(); 
+    
+    public class BlinkBinder extends Binder{
+    	BlinkService getService(){
+    		return BlinkService.this;    		
+    	}
+    }
+    
 	public BlinkService(){
-		super("blink");
+		super();
 		Log.d(TAG,"Construct blinkservice");
 		
 	}
 	
 	@Override
 	public void onCreate(){
+		Log.d(TAG,"onCreate");
         mUsbManager = UsbManager.getInstance(this);
         
 		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
@@ -68,11 +78,11 @@ public class BlinkService extends IntentService  {
 		Log.d(TAG, "mUsbReceiver Registered");
 		
 
-		
 		mAdManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 		
-//		Thread thread = new Thread(null, this, "BlinkWithMusic");
-//        thread.start();   		
+		Thread thread = new Thread(null, this, "BlinkWithMusic");
+        thread.start();
+        
 	}
 	
 		
@@ -93,13 +103,11 @@ public class BlinkService extends IntentService  {
         public void onReceive(Context context, Intent intent) {
         	
 
-        	Log.d(TAG, "Received action");
+        	Log.d(TAG, "Received Broadcast");
             String action = intent.getAction();
             Log.d(TAG, "onReceived action:"+action);
             
             
-            
-
             
             if(ACTION_USB_PERMISSION.equals(action)){
 
@@ -111,7 +119,7 @@ public class BlinkService extends IntentService  {
             		
                     if( intent.getBooleanExtra(
                             UsbManager.EXTRA_PERMISSION_GRANTED,false)){
-                        //openAccessory(accessory);
+                        openAccessory(accessory);
                     }else{
                         Log.d(TAG, "permission denied for accessory"
                                 + accessory);
@@ -134,6 +142,9 @@ public class BlinkService extends IntentService  {
 
 
     private void openAccessory(UsbAccessory accessory) {
+    	
+    	Log.d(TAG,"openAccessory");
+    	
         mFileDescriptor = mUsbManager.openAccessory(accessory);
         if (mFileDescriptor != null) {
             mAccessory = accessory;
@@ -151,7 +162,7 @@ public class BlinkService extends IntentService  {
     }
 
     private void closeAccessory() {
-        
+    	Log.d(TAG,"closeAccessory");
         try {
             if (mFileDescriptor != null) {
                 mFileDescriptor.close();
@@ -176,6 +187,18 @@ public class BlinkService extends IntentService  {
 //    	return START_STICKY;
 //    }
     
+    public void enableBlink(boolean shouldBlink){
+    	String msg = shouldBlink ? "Enable blink" : "Disable blink";
+    	Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    	
+    	bBlinking = shouldBlink;
+    }
+    
+    
+    public boolean isBlinking(){
+    	return bBlinking;
+    }
+
 	public void run() {
 		//
 		Log.d(TAG,"run in thread");
@@ -188,11 +211,11 @@ public class BlinkService extends IntentService  {
 		
 		//int maxVol = mAdManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 		
-		while(bShouldStopService){
+		while(bBlinking){
 			
 		
 			byte normal = 0;
-			if(bShouldStopBlink && mInputStream!=null && mOutputStream!=null){
+			if(  mInputStream!=null && mOutputStream!=null){
 				
 				byte wave[] = new byte[iCaptureLen];
 				int total = 0;
@@ -251,17 +274,12 @@ public class BlinkService extends IntentService  {
 	}
 
 	@Override
-	public IBinder onBind(Intent arg0) {
-		// TODO Auto-generated method stub
-		return null;
+	public IBinder onBind(Intent intent) {
+		return mBlinkBinder;
 	}
 
-	@Override
-	protected void onHandleIntent(Intent arg0) {
-		// TODO Auto-generated method stub
-		run();
-	}    
-	
+
+
 	
 	
 }
